@@ -9,6 +9,8 @@ import (
     "flag"
     "os"
     
+    "html/template"
+    
     "github.com/microcosm-cc/bluemonday"
     "github.com/russross/blackfriday/v2"
 )
@@ -44,19 +46,20 @@ func main() {
 }
 
 func run(c config) error {
-    fmt.Println(c);
+    
     // If root is a README parse README
     if isMarkdownReadMe(c.root) {
-        readme, err := parseReadme(c.root);
+        readme, err := parseReadme(c.root, "template.tmpl");
         if err != nil {
             return err;
         }
-        fmt.Println(readme)
+        fmt.Println(string(readme))
     } else {
         //walkDir(c.root);
     }
     return nil
 }
+
 
 func isMarkdownReadMe(path string) bool {
     name := filepath.Base(path);
@@ -67,7 +70,7 @@ func isMarkdownReadMe(path string) bool {
     return false;
 }
 
-func parseReadme(root string) ([]byte, error) {
+func parseReadme(root, tFilename string) ([]byte, error) {
     content, err := ioutil.ReadFile(root);
     if err != nil {
         return nil, err
@@ -78,7 +81,24 @@ func parseReadme(root string) ([]byte, error) {
     
     var buffer bytes.Buffer;
     
-    buffer.Write(text);
+    t, err := template.ParseFiles(tFilename);
+    if err != nil {
+        return nil, err;
+    }
+    
+    type data struct {
+        Title string
+        Body template.HTML
+    }
+    
+    c := data {
+        Title: "README EXPLORER",
+        Body: template.HTML(text),
+    }
+    
+    if err := t.Execute(&buffer, c); err != nil {
+        return nil, err;
+    }
     
     return buffer.Bytes(), nil;
     
