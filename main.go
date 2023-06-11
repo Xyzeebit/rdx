@@ -5,10 +5,12 @@ import (
     "path/filepath"
     "io/ioutil"
     _"io/fs"
-    "bytes"
     "flag"
     "os"
     
+    "strconv"
+    
+    "net/http"
     "html/template"
     
     "github.com/microcosm-cc/bluemonday"
@@ -21,6 +23,14 @@ type config struct {
     port int
 }
 
+type data struct {
+    Title string
+    Body template.HTML
+}
+
+var templateData data;
+var configData config;
+
 func main() {
     help := flag.String("help", "", "Usage help");
     root := flag.String("path", ".", "Directory to search");
@@ -28,7 +38,7 @@ func main() {
     depth := flag.Int("d", 3, "Maximum recursive depth");
     flag.Parse();
     
-    c := config {
+    configData = config {
         root: *root, 
         depth: *depth, 
         port: *port,
@@ -39,21 +49,21 @@ func main() {
         os.Exit(1);
     }
     
-    if err := run(c); err != nil {
+    if err := run(); err != nil {
         os.Exit(1);
     }
     
 }
 
-func run(c config) error {
+func run() error {
     
     // If root is a README parse README
-    if isMarkdownReadMe(c.root) {
-        readme, err := parseReadme(c.root, "template.tmpl");
+    if isMarkdownReadMe(configData.root) {
+        err := parseReadme(configData.root);
         if err != nil {
             return err;
         }
-        fmt.Println(string(readme))
+        startServer(configData.port);
     } else {
         //walkDir(c.root);
     }
@@ -70,36 +80,47 @@ func isMarkdownReadMe(path string) bool {
     return false;
 }
 
-func parseReadme(root, tFilename string) ([]byte, error) {
+func parseReadme(root string) error {
     content, err := ioutil.ReadFile(root);
     if err != nil {
-        return nil, err
+        return err
     }
-    // parse content with blackfriday
+    // parse content with blackfriday and bluemonday
     output := blackfriday.Run(content);
     text := bluemonday.UGCPolicy().SanitizeBytes(output);
     
-    var buffer bytes.Buffer;
+    templateData.Title = "README EXPLORER";
+    templateData.Body = template.HTML(text);
     
-    t, err := template.ParseFiles(tFilename);
+    return nil;
+    
+}
+
+func startServer(port int) {
+    
+    server := http.Server {
+        Addr: string("127.0.0.1:" + strconv.Itoa(port)),
+    }
+    
+    http.HandleFunc("/", requestHandler);
+    
+    fmt.Println("Server started on port:", port);
+    
+    server.ListenAndServe();
+    
+    
+}
+
+func requestHandler(w http.ResponseWriter, r *http.Request) {
+    
+    t, err := template.ParseFiles("template.tmpl");
     if err != nil {
-        return nil, err;
+        os.Exit(1);
     }
     
-    type data struct {
-        Title string
-        Body template.HTML
+    if err := t.Execute(w, templateData); err != nil {
+        os.Exit(1);
     }
     
-    c := data {
-        Title: "README EXPLORER",
-        Body: template.HTML(text),
-    }
-    
-    if err := t.Execute(&buffer, c); err != nil {
-        return nil, err;
-    }
-    
-    return buffer.Bytes(), nil;
     
 }
