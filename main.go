@@ -2,14 +2,15 @@ package main
 
 import (
     "fmt"
-    _"io/ioutil"
+    "path/filepath"
+    "io/ioutil"
     _"io/fs"
-    _"bytes"
+    "bytes"
     "flag"
     "os"
     
-    _"github.com/microcosm-cc/bluemonday"
-    _"github.com/russross/blackfriday/v2"
+    "github.com/microcosm-cc/bluemonday"
+    "github.com/russross/blackfriday/v2"
 )
 
 type config struct {
@@ -44,5 +45,41 @@ func main() {
 
 func run(c config) error {
     fmt.Println(c);
+    // If root is a README parse README
+    if isMarkdownReadMe(c.root) {
+        readme, err := parseReadme(c.root);
+        if err != nil {
+            return err;
+        }
+        fmt.Println(readme)
+    } else {
+        //walkDir(c.root);
+    }
     return nil
+}
+
+func isMarkdownReadMe(path string) bool {
+    name := filepath.Base(path);
+    
+    if name == "README.md" {
+        return true;
+    }
+    return false;
+}
+
+func parseReadme(root string) ([]byte, error) {
+    content, err := ioutil.ReadFile(root);
+    if err != nil {
+        return nil, err
+    }
+    // parse content with blackfriday
+    output := blackfriday.Run(content);
+    text := bluemonday.UGCPolicy().SanitizeBytes(output);
+    
+    var buffer bytes.Buffer;
+    
+    buffer.Write(text);
+    
+    return buffer.Bytes(), nil;
+    
 }
