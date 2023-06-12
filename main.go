@@ -14,6 +14,9 @@ import (
     "net/http"
     "html/template"
     
+    "os/exec"
+    "runtime"
+    
     "github.com/microcosm-cc/bluemonday"
     "github.com/russross/blackfriday/v2"
 )
@@ -127,16 +130,19 @@ func walkPath(path string, maxDepth int) error {
 }
 
 func startServer(port int) {
-    
+    addr := string("127.0.0.1:" + strconv.Itoa(port));
     server := http.Server {
-        Addr: string("127.0.0.1:" + strconv.Itoa(port)),
+        Addr: addr,
     }
     
     http.HandleFunc("/", requestHandler);
     
     fmt.Println("Server started on port:", port);
-    
+    if err := autoOpen("http://" + addr); err != nil {
+        fmt.Println(err);
+    }
     server.ListenAndServe();
+    
     
     
 }
@@ -155,4 +161,22 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
     //m, ok := templateData[r.URL.Path];
     
     
+}
+
+func autoOpen(addr string) error {
+    var err error;
+    switch runtime.GOOS {
+        case "linux":
+            err = exec.Command("xdg-open", addr).Start();
+        case "android":
+            err = exec.Command("xdg-open", addr).Start();
+        case "windows":
+            err = exec.Command("rundll32", "url.dll,FileProtocolHandler", addr).Start();
+        case "darwin":
+            err = exec.Command("open", addr).Start();
+        default:
+            err = fmt.Errorf("OS not supported");
+    }
+    
+    return err;
 }
