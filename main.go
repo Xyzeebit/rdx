@@ -4,10 +4,11 @@ import (
     "fmt"
     "path/filepath"
     "io/ioutil"
-    _"io/fs"
+    "io/fs"
     "flag"
     "os"
     
+    "strings"
     "strconv"
     
     "net/http"
@@ -24,11 +25,12 @@ type config struct {
 }
 
 type data struct {
+    Path string
     Title string
     Body template.HTML
 }
 
-var templateData data;
+var templateData map[string]*data;
 var configData config;
 
 func main() {
@@ -43,6 +45,8 @@ func main() {
         depth: *depth, 
         port: *port,
     }
+    
+    templateData = make(map[string] *data);
     
     if *help != "" {
         flag.Usage();
@@ -65,7 +69,8 @@ func run() error {
         }
         startServer(configData.port);
     } else {
-        //walkDir(c.root);
+        walkPath(configData.root, configData.depth);
+        startServer(configData.port)
     }
     return nil
 }
@@ -73,8 +78,8 @@ func run() error {
 
 func isMarkdownReadMe(path string) bool {
     name := filepath.Base(path);
-    
-    if name == "README.md" {
+    name = strings.ToLower(name);
+    if name == "readme.md" {
         return true;
     }
     return false;
@@ -89,11 +94,36 @@ func parseReadme(root string) error {
     output := blackfriday.Run(content);
     text := bluemonday.UGCPolicy().SanitizeBytes(output);
     
-    templateData.Title = "README EXPLORER";
-    templateData.Body = template.HTML(text);
+    if _, ok := templateData[root]; !ok {
+        d := data {
+            Path: root,
+            Title: "README EXPLORER",
+            Body: template.HTML(text),
+        }
+        templateData[root] = &d;
+    }
     
     return nil;
     
+}
+
+func walkPath(path string, maxDepth int) error {
+    err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+        if err != nil {
+            return err;
+        }
+        if d.IsDir() && strings.Count(path, string(os.PathSeparator)) > maxDepth {
+            return fs.SkipDir
+        }
+        
+        base := filepath.Base(path);
+        base = strings.ToLower(base);
+        if base == "readme.md" {
+            parseReadme(path);
+        }
+        return nil
+    });
+    return err;
 }
 
 func startServer(port int) {
@@ -117,10 +147,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         os.Exit(1);
     }
-    
-    if err := t.Execute(w, templateData); err != nil {
-        os.Exit(1);
+    if r.URL.Path == "/" {
+        if err := t.Execute(w, templateData); err != nil {
+            os.Exit(1);
+        }
     }
+    //m, ok := templateData[r.URL.Path];
     
     
 }
