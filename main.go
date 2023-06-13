@@ -22,6 +22,7 @@ import (
 )
 
 type config struct {
+    open string
     root string
     depth int
     port int
@@ -41,9 +42,11 @@ func main() {
     root := flag.String("path", ".", "Directory to search");
     port := flag.Int("p", 4559, "PORT to preview");
     depth := flag.Int("d", 3, "Maximum recursive depth");
+    open := flag.String("open", "", "Specify a Markdown file to open for previewing");
     flag.Parse();
     
     configData = config {
+        open: *open,
         root: *root, 
         depth: *depth, 
         port: *port,
@@ -64,9 +67,18 @@ func main() {
 
 func run() error {
     
+    // Open a specify markdown file for previewing
+    if configData.open != "" && isMarkdown(configData.open) {
+        err := parseMarkdown(configData.open);
+        if err != nil {
+            return err;
+        }
+        startServer(configData.port);
+        return nil;
+    }
     // If root is a README parse README
     if isMarkdownReadMe(configData.root) {
-        err := parseReadme(configData.root);
+        err := parseMarkdown(configData.root);
         if err != nil {
             return err;
         }
@@ -88,7 +100,15 @@ func isMarkdownReadMe(path string) bool {
     return false;
 }
 
-func parseReadme(root string) error {
+func isMarkdown(filename string) bool {
+    ext := filepath.Ext(filename);
+    if ext == ".md" {
+        return true;
+    }
+    return false;
+}
+
+func parseMarkdown(root string) error {
     content, err := ioutil.ReadFile(root);
     if err != nil {
         return err
@@ -122,7 +142,7 @@ func walkPath(path string, maxDepth int) error {
         base := filepath.Base(path);
         base = strings.ToLower(base);
         if base == "readme.md" {
-            parseReadme(path);
+            parseMarkdown(path);
         }
         return nil
     });
