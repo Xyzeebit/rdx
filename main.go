@@ -22,6 +22,7 @@ import (
 )
 
 type config struct {
+    open string
     root string
     depth int
     port int
@@ -41,9 +42,11 @@ func main() {
     root := flag.String("path", ".", "Directory to search");
     port := flag.Int("p", 4559, "PORT to preview");
     depth := flag.Int("d", 3, "Maximum recursive depth");
+    open := flag.String("open", "", "Specify a Markdown file to open for previewing");
     flag.Parse();
     
     configData = config {
+        open: *open,
         root: *root, 
         depth: *depth, 
         port: *port,

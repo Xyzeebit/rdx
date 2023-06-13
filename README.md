@@ -16,16 +16,20 @@ To load the README files in the current directory
 Load README files in a specify directory and sub directories
 
 ```console
-  rdx -path "./my-directory"
+  rdx -path ./my-directory
 ```
 Load README with max recursive depth
 
 ```console
-  rdx -path "./my-directory" -d 3
+  rdx -path ./my-directory -d 3
 ```
 To specify a different port for previewing the README files
 ```console
-   rdx -path "./my-directory" -p 8000
+   rdx -path ./my-directory -p 8000
+```
+To open and preview any Markdown file run
+```console
+   rdx -open my-file.md
 ```
 
 ## LICENSE
